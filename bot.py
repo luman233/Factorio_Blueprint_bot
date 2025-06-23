@@ -5,9 +5,10 @@ from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup, TelegramEr
 # Загрузка переменных окружения
 TOKEN = os.getenv('TELEGRAM_TOKEN')
 CHAT_ID = int(os.getenv('TELEGRAM_CHAT_ID'))
-THREAD_ID = int(os.getenv('TELEGRAM_THREAD_ID'))  # если вы используете темы, иначе уберите
-STATE_FILE = 'state.json'
+THREAD_ID = os.getenv('TELEGRAM_THREAD_ID')  # если используете темы, иначе поставьте None
+THREAD_ID = int(THREAD_ID) if THREAD_ID else None
 
+STATE_FILE = 'state.json'
 bot = Bot(token=TOKEN)
 
 # Сообщение и клавиатура
@@ -34,60 +35,68 @@ if os.path.exists(STATE_FILE):
 else:
     state = {}
 
-previous_message_id = state.get('previous_message_id')
-previous_helper_id = state.get('previous_helper_id')
+previous_message_id = state.get('message_id')
 
 try:
-    # Отправка основного сообщения
-    sent_message = bot.send_message(
-        chat_id=CHAT_ID,
-        text=message_text,
-        parse_mode='HTML',
-        reply_markup=keyboard,
-        message_thread_id=THREAD_ID if THREAD_ID else None
-    )
-
-    # Отправка вспомогательного сообщения
-    helper_message = bot.send_message(
-        chat_id=CHAT_ID,
-        text="Проверка, без звука",
-        disable_notification=True,
-        message_thread_id=THREAD_ID if THREAD_ID else None
-    )
-
-    # Проверка разницы ID
-    id_difference = helper_message.message_id - sent_message.message_id
-
-    if previous_message_id and previous_helper_id:
-        # Если в прошлый раз кто-то написал
-        if (previous_helper_id - previous_message_id) != 1:
-            # Удаляем старое сообщение
-            bot.delete_message(chat_id=CHAT_ID, message_id=previous_message_id)
-            print("Удалено старое сообщение")
-
-    if id_difference == 1:
-        print("Никто не написал после сообщения")
-        bot.delete_message(chat_id=CHAT_ID, message_id=helper_message.message_id)
-    else:
-        print("Кто-то написал после сообщения, пересоздаём")
-        bot.delete_message(chat_id=CHAT_ID, message_id=helper_message.message_id)
-        bot.delete_message(chat_id=CHAT_ID, message_id=sent_message.message_id)
-        # Публикуем заново без звука
-        bot.send_message(
+    if previous_message_id is None:
+        # Первый запуск: отправляем основное сообщение
+        sent_message = bot.send_message(
             chat_id=CHAT_ID,
             text=message_text,
             parse_mode='HTML',
             reply_markup=keyboard,
-            disable_notification=True,
-            message_thread_id=THREAD_ID if THREAD_ID else None
+            message_thread_id=THREAD_ID
         )
 
-    # Сохраняем новые ID
-    state['previous_message_id'] = sent_message.message_id
-    state['previous_helper_id'] = helper_message.message_id
+        # Сохраняем ID основного сообщения
+        state['message_id'] = sent_message.message_id
 
-    with open(STATE_FILE, 'w') as f:
-        json.dump(state, f)
+        with open(STATE_FILE, 'w') as f:
+            json.dump(state, f)
+
+        print(f"Первый запуск. Отправлено сообщение с ID {sent_message.message_id}")
+
+    else:
+        # Следующий цикл: отправляем вспомогательное сообщение
+        helper_message = bot.send_message(
+            chat_id=CHAT_ID,
+            text="Проверка, без звука",
+            disable_notification=True,
+            message_thread_id=THREAD_ID
+        )
+
+        # Удаляем вспомогательное сообщение
+        bot.delete_message(chat_id=CHAT_ID, message_id=helper_message.message_id)
+
+        print(f"Основное сообщение ID: {previous_message_id}")
+        print(f"Вспомогательное сообщение ID: {helper_message.message_id}")
+
+        if helper_message.message_id == previous_message_id + 1:
+            print("Никто не писал после основного сообщения. Всё хорошо.")
+            # Ничего не делаем, сохраняем ID как есть
+
+        else:
+            print("Кто-то написал после основного сообщения. Удаляем и публикуем заново без звука.")
+            # Удаляем старое сообщение
+            bot.delete_message(chat_id=CHAT_ID, message_id=previous_message_id)
+
+            # Публикуем новое без звука
+            new_message = bot.send_message(
+                chat_id=CHAT_ID,
+                text=message_text,
+                parse_mode='HTML',
+                reply_markup=keyboard,
+                disable_notification=True,
+                message_thread_id=THREAD_ID
+            )
+
+            # Сохраняем новый ID
+            state['message_id'] = new_message.message_id
+
+            with open(STATE_FILE, 'w') as f:
+                json.dump(state, f)
+
+            print(f"Новое сообщение отправлено с ID {new_message.message_id}")
 
 except TelegramError as e:
     print(f"Ошибка: {e}")
