@@ -58,12 +58,16 @@ try:
 
     else:
         # Следующий цикл: отправляем вспомогательное сообщение
+        state['previous_message_id'] = previous_message_id
+
         helper_message = bot.send_message(
             chat_id=CHAT_ID,
             text="Проверка, без звука",
             disable_notification=True,
             message_thread_id=THREAD_ID
         )
+
+        state['previous_helper_id'] = helper_message.message_id
 
         # Удаляем вспомогательное сообщение
         bot.delete_message(chat_id=CHAT_ID, message_id=helper_message.message_id)
@@ -73,10 +77,10 @@ try:
 
         if helper_message.message_id == previous_message_id + 1:
             print("Никто не писал после основного сообщения. Всё хорошо.")
-            # Ничего не делаем, сохраняем ID как есть
-
+            # Сообщение не меняем
         else:
             print("Кто-то написал после основного сообщения. Удаляем и публикуем заново без звука.")
+
             # Удаляем старое сообщение
             bot.delete_message(chat_id=CHAT_ID, message_id=previous_message_id)
 
@@ -93,10 +97,11 @@ try:
             # Сохраняем новый ID
             state['message_id'] = new_message.message_id
 
-            with open(STATE_FILE, 'w') as f:
-                json.dump(state, f)
+        # Сохраняем изменения состояния
+        with open(STATE_FILE, 'w') as f:
+            json.dump(state, f)
 
-            print(f"Новое сообщение отправлено с ID {new_message.message_id}")
+        print("Состояние обновлено:", state)
 
 except TelegramError as e:
     print(f"Ошибка: {e}")
