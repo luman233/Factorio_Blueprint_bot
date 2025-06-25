@@ -71,8 +71,8 @@ try:
         print(f"Основное сообщение ID: {message_id}")
         print(f"Вспомогательное сообщение ID: {helper_id}")
 
-        if helper_id == message_id + 1:
-            # Всё чисто — удаляем только вспомогательное
+        # Проверка: helper_id идёт сразу или почти сразу после основного?
+        if (helper_id - message_id) <= 2:
             print("Никто не писал. Основное сообщение остаётся.")
             try:
                 bot.delete_message(chat_id=CHAT_ID, message_id=helper_id)
@@ -80,10 +80,8 @@ try:
                 print(f"Ошибка при удалении вспомогательного: {e}")
 
         else:
-            # Кто-то писал — удаляем старое основное и вспомогательное, публикуем новое
             print("Обнаружена активность после основного сообщения. Перепубликуем.")
 
-            # Гарантированно получаем old_message_id
             old_message_id = old_message_id or message_id
 
             # Удаляем вспомогательное
@@ -92,13 +90,13 @@ try:
             except TelegramError as e:
                 print(f"Ошибка при удалении вспомогательного: {e}")
 
-            # Удаляем старое основное сообщение
+            # Удаляем основное сообщение
             try:
                 bot.delete_message(chat_id=CHAT_ID, message_id=old_message_id)
             except TelegramError as e:
                 print(f"Ошибка при удалении основного: {e}")
 
-            # Публикуем новое основное сообщение
+            # Отправляем новое основное
             new_msg = bot.send_message(
                 chat_id=CHAT_ID,
                 text=message_text,
