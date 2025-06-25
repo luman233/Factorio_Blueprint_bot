@@ -11,7 +11,7 @@ THREAD_ID = int(THREAD_ID) if THREAD_ID else None
 STATE_FILE = 'state.json'
 bot = Bot(token=TOKEN)
 
-# Текст и кнопки
+# Сообщение и кнопки
 message_text = (
     "<b>🔷 Что должно быть в посте:</b>\n"
     "<b>1. Название —</b> кратко отражает суть, например: «Набор чертежей для ситиблоков»\n"
@@ -39,7 +39,7 @@ message_id = state.get('message_id')
 
 try:
     if message_id is None:
-        # Первый запуск: отправляем основное сообщение
+        # Первый запуск — отправляем основное сообщение
         sent = bot.send_message(
             chat_id=CHAT_ID,
             text=message_text,
@@ -63,25 +63,25 @@ try:
             message_thread_id=THREAD_ID
         )
 
-        state['previous_helper_id'] = helper.message_id
+        helper_id = helper.message_id
+        state['previous_helper_id'] = helper_id
 
         print(f"Основное сообщение ID: {message_id}")
-        print(f"Вспомогательное сообщение ID: {helper.message_id}")
+        print(f"Вспомогательное сообщение ID: {helper_id}")
 
-        if helper.message_id == message_id + 1:
-            # Всё хорошо — удаляем только вспомогательное
-            bot.delete_message(chat_id=CHAT_ID, message_id=helper.message_id)
-            print("Всё чисто. Никто не писал после основного сообщения.")
+        if helper_id == message_id + 1:
+            # Всё чисто — обновим ID и удалим вспомогательное
+            print("Никто не писал. Обновим message_id.")
+            bot.delete_message(chat_id=CHAT_ID, message_id=helper_id)
+            state['message_id'] = helper_id  # продолжаем считать от этого ID
 
         else:
-            # Кто-то написал — удаляем всё и публикуем заново
-            print("После основного сообщения что-то написали. Перепубликуем.")
+            # Кто-то писал — удаляем оба и публикуем новое основное сообщение
+            print("Обнаружена активность после основного сообщения. Перепубликуем.")
 
-            # Удаляем старые сообщения
-            bot.delete_message(chat_id=CHAT_ID, message_id=helper.message_id)
+            bot.delete_message(chat_id=CHAT_ID, message_id=helper_id)
             bot.delete_message(chat_id=CHAT_ID, message_id=message_id)
 
-            # Отправляем новое основное сообщение
             new_msg = bot.send_message(
                 chat_id=CHAT_ID,
                 text=message_text,
@@ -91,9 +91,8 @@ try:
                 message_thread_id=THREAD_ID
             )
 
-            # Обновляем состояние
             state['message_id'] = new_msg.message_id
-            state['previous_helper_id'] = None  # обнуляем — вспомогательное уже удалено
+            state['previous_helper_id'] = None
 
             print(f"Новое основное сообщение отправлено с ID {new_msg.message_id}")
 
