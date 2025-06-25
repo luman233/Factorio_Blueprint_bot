@@ -11,7 +11,7 @@ THREAD_ID = int(THREAD_ID) if THREAD_ID else None
 STATE_FILE = 'state.json'
 bot = Bot(token=TOKEN)
 
-# Сообщение и кнопки
+# Текст и кнопки
 message_text = (
     "<b>🔷 Что должно быть в посте:</b>\n"
     "<b>1. Название —</b> кратко отражает суть, например: «Набор чертежей для ситиблоков»\n"
@@ -36,6 +36,7 @@ else:
     state = {}
 
 message_id = state.get('message_id')
+old_message_id = state.get('old_message_id')
 
 try:
     if message_id is None:
@@ -49,6 +50,7 @@ try:
         )
 
         state['message_id'] = sent.message_id
+        state['old_message_id'] = sent.message_id
         with open(STATE_FILE, 'w') as f:
             json.dump(state, f)
 
@@ -70,26 +72,33 @@ try:
         print(f"Вспомогательное сообщение ID: {helper_id}")
 
         if helper_id == message_id + 1:
-            # Всё чисто — обновим ID и удалим вспомогательное
-            print("Никто не писал. Обновим message_id.")
-            bot.delete_message(chat_id=CHAT_ID, message_id=helper_id)
-            state['message_id'] = helper_id  # продолжаем отсчёт от этого ID
-
-        else:
-            # Кто-то писал — удаляем оба и публикуем новое
-            print("Обнаружена активность после основного сообщения. Перепубликуем.")
-
-            old_message_id = message_id  # сохраняем до обновления
+            # Всё чисто — удаляем только вспомогательное
+            print("Никто не писал. Основное сообщение остаётся.")
             try:
                 bot.delete_message(chat_id=CHAT_ID, message_id=helper_id)
             except TelegramError as e:
                 print(f"Ошибка при удалении вспомогательного: {e}")
 
+        else:
+            # Кто-то писал — удаляем старое основное и вспомогательное, публикуем новое
+            print("Обнаружена активность после основного сообщения. Перепубликуем.")
+
+            # Гарантированно получаем old_message_id
+            old_message_id = old_message_id or message_id
+
+            # Удаляем вспомогательное
+            try:
+                bot.delete_message(chat_id=CHAT_ID, message_id=helper_id)
+            except TelegramError as e:
+                print(f"Ошибка при удалении вспомогательного: {e}")
+
+            # Удаляем старое основное сообщение
             try:
                 bot.delete_message(chat_id=CHAT_ID, message_id=old_message_id)
             except TelegramError as e:
                 print(f"Ошибка при удалении основного: {e}")
 
+            # Публикуем новое основное сообщение
             new_msg = bot.send_message(
                 chat_id=CHAT_ID,
                 text=message_text,
@@ -99,7 +108,9 @@ try:
                 message_thread_id=THREAD_ID
             )
 
+            # Обновляем состояние
             state['message_id'] = new_msg.message_id
+            state['old_message_id'] = new_msg.message_id
             state['previous_helper_id'] = None
 
             print(f"Новое основное сообщение отправлено с ID {new_msg.message_id}")
