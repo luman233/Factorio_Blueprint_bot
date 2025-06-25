@@ -73,19 +73,23 @@ try:
             # Всё чисто — обновим ID и удалим вспомогательное
             print("Никто не писал. Обновим message_id.")
             bot.delete_message(chat_id=CHAT_ID, message_id=helper_id)
-            state['message_id'] = helper_id  # продолжаем считать от этого ID
+            state['message_id'] = helper_id  # продолжаем отсчёт от этого ID
 
         else:
-            # Кто-то писал — удаляем оба и публикуем новое основное сообщение
+            # Кто-то писал — удаляем оба и публикуем новое
             print("Обнаружена активность после основного сообщения. Перепубликуем.")
 
+            old_message_id = message_id  # сохраняем до обновления
             try:
                 bot.delete_message(chat_id=CHAT_ID, message_id=helper_id)
-                bot.delete_message(chat_id=CHAT_ID, message_id=message_id)
-            except TelegramError as delete_error:
-                print(f"Ошибка при удалении: {delete_error}")
+            except TelegramError as e:
+                print(f"Ошибка при удалении вспомогательного: {e}")
 
-            # Отправляем новое основное сообщение
+            try:
+                bot.delete_message(chat_id=CHAT_ID, message_id=old_message_id)
+            except TelegramError as e:
+                print(f"Ошибка при удалении основного: {e}")
+
             new_msg = bot.send_message(
                 chat_id=CHAT_ID,
                 text=message_text,
