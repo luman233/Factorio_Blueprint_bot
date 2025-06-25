@@ -79,9 +79,13 @@ try:
             # Кто-то писал — удаляем оба и публикуем новое основное сообщение
             print("Обнаружена активность после основного сообщения. Перепубликуем.")
 
-            bot.delete_message(chat_id=CHAT_ID, message_id=helper_id)
-            bot.delete_message(chat_id=CHAT_ID, message_id=message_id)
+            try:
+                bot.delete_message(chat_id=CHAT_ID, message_id=helper_id)
+                bot.delete_message(chat_id=CHAT_ID, message_id=message_id)
+            except TelegramError as delete_error:
+                print(f"Ошибка при удалении: {delete_error}")
 
+            # Отправляем новое основное сообщение
             new_msg = bot.send_message(
                 chat_id=CHAT_ID,
                 text=message_text,
