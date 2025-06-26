@@ -72,7 +72,7 @@ try:
         print(f"Вспомогательное сообщение ID: {helper_id}")
 
         # Проверка: helper_id идёт сразу или почти сразу после основного?
-        if (helper_id - message_id) <= 2:
+        if (helper_id - message_id) <= 4:
             print("Никто не писал. Основное сообщение остаётся.")
             try:
                 bot.delete_message(chat_id=CHAT_ID, message_id=helper_id)
