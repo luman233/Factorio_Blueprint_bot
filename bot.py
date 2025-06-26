@@ -72,7 +72,7 @@ try:
         print(f"Вспомогательное сообщение ID: {helper_id}")
 
         # Если разница не больше 4 — всё хорошо
-        if (helper_id - message_id) <= 4:
+        if (helper_id - message_id) <= 2:
             print("Никто не писал. Основное сообщение остаётся.")
             state['message_id'] = helper_id  # ⬅️ Обновляем отслеживание
             try:
